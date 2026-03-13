@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import requests, os
 
 app = Flask(__name__, static_folder='static')
@@ -12,7 +14,10 @@ GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
 def index():
     return send_from_directory('static', 'index.html')
 
+limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute", "100 per day"])
+
 @app.route('/humanize', methods=['POST'])
+@limiter.limit("5 per minute")
 def humanize():
     if not GROQ_API_KEY:
         return jsonify({'error': 'Server API key not configured. Set GROQ_API_KEY environment variable.'}), 500
