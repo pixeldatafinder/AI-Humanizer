@@ -167,6 +167,18 @@ def call_groq(system, user, temp=1.2):
         raise Exception(result.get('error', {}).get('message', 'Groq API error'))
     return result['choices'][0]['message']['content']
 
+@app.route('/sitemap.xml')
+def sitemap():
+    xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://ai-humanizer-1umd.onrender.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>'''
+    return app.response_class(xml, mimetype='application/xml')
+
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
