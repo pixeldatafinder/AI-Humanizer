@@ -474,9 +474,6 @@ function getActiveStrategies() {
 let lastRun = 0;
 let historyStack = [];
 
-let lastRun = 0;
-let historyStack = [];
-
 function saveHistory(text) {
   historyStack.push(text);
   if (historyStack.length > 5) historyStack.shift();
@@ -563,7 +560,9 @@ async function runHumanize() {
     const data = await resp.json();
     if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
 
-    const result = (data.content || []).find(b => b.type === 'text')?.text || '';
+    const result = data.choices?.[0]?.message?.content ||
+                   data.content?.[0]?.text ||
+                   '';
     if (!result) throw new Error('Empty response from API');
     if (typeof result !== 'string') throw new Error('Invalid server response.');
 
@@ -573,6 +572,7 @@ async function runHumanize() {
     outputArea.textContent = result;
     outputArea.style.borderColor = 'var(--accent)';
     setTimeout(() => { outputArea.style.borderColor = 'var(--border)'; }, 1200);
+    outputArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     document.getElementById('copyBtn').style.display = 'block';
     showMetrics(input, result, strategies, intensity);
 
@@ -619,13 +619,33 @@ function showMetrics(input, output, strategies, intensity) {
   document.getElementById('metricsWrap').style.display = 'block';
 }
 
-function copyOutput() {
-  const text = document.getElementById('outputArea').textContent;
-  navigator.clipboard.writeText(text).then(() => {
+async function copyOutput() {
+  try {
+    const text = document.getElementById('outputArea').textContent;
+    await navigator.clipboard.writeText(text);
     const btn = document.getElementById('copyBtn');
     btn.textContent = 'Copied!';
     setTimeout(() => btn.textContent = 'Copy', 2000);
-  });
+  } catch {
+    alert('Copy failed. Please select the text and copy manually.');
+  }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "AI Text Humanizer",
+  "description": "Free AI text humanizer. Rewrite AI-generated text to sound natural and human-like.",
+  "applicationCategory": "WritingApplication",
+  "operatingSystem": "Web",
+  "url": "https://ai-humanizer-1umd.onrender.com/",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
 }
 </script>
 </body>
