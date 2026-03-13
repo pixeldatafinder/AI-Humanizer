@@ -220,5 +220,5 @@ def rate_limit_exceeded(e):
     return jsonify({'error': 'Too many requests. Please wait a minute and try again.'}), 429
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 7845))
+    port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port, debug=False)
