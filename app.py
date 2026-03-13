@@ -9,23 +9,36 @@ CORS(app)
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
+MAX_WORDS = 5000
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["100 per day", "10 per minute"],
+    storage_uri="memory://"
+)
 
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
 
-limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute", "100 per day"])
-
 @app.route('/humanize', methods=['POST'])
 @limiter.limit("5 per minute")
 def humanize():
     if not GROQ_API_KEY:
-        return jsonify({'error': 'Server API key not configured. Set GROQ_API_KEY environment variable.'}), 500
+        return jsonify({'error': 'Server API key not configured.'}), 500
 
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid request.'}), 400
+
     system_prompt = data.get('system', '')
     user_message = data.get('messages', [{}])[0].get('content', '')
     double_pass = data.get('doublePass', False)
+
+    word_count = len(user_message.split())
+    if word_count > MAX_WORDS:
+        return jsonify({'error': f'Input too long. Maximum {MAX_WORDS} words allowed.'}), 400
 
     def call_groq(system, user, temp=1.2):
         payload = {
@@ -76,6 +89,10 @@ RULES:
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.errorhandler(429)
+def rate_limit_exceeded(e):
+    return jsonify({'error': 'Too many requests. Please wait a minute and try again.'}), 429
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 7845))
