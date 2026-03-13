@@ -226,9 +226,9 @@
 <div class="page">
 
   <div class="header">
-    <div class="logo">AI Detection Bypass Tool</div>
+    <div class="logo">Advanced AI Text Humanizer</div>
     <h1>Text <span>Humanizer</span></h1>
-    <p class="subtitle">Reverse-engineered from GPTZero, Turnitin, Originality.ai & Copyleaks — targeting every signal they scan for.</p>
+    <p class="subtitle">Designed to improve readability and natural writing patterns — targeting perplexity, burstiness, and lexical diversity.</p>
     <div class="pills">
       <span class="pill pill-t">Burstiness control</span>
       <span class="pill pill-a">Perplexity boost</span>
@@ -333,8 +333,8 @@
   </div>
 
   <div class="footer">
-    <strong>Powered by Groq + Llama 3.3 70B (free).</strong> AI detectors flag text using perplexity (predictability), burstiness (sentence length variance), and deep classifier models.<br>
-    This tool targets all three layers simultaneously — rewriting in authentic human patterns.
+    <strong>Powered by Groq + Llama 3.3 70B (free).</strong> Targets perplexity scoring, burstiness variance, and lexical fingerprints to improve natural writing patterns.<br>
+    Free to use — no sign up required.
   </div>
 </div>
 
@@ -346,7 +346,15 @@ document.getElementById('intensity').addEventListener('input', e => {
 
 document.getElementById('inputText').addEventListener('input', e => {
   const words = e.target.value.trim().split(/\s+/).filter(Boolean).length;
-  document.getElementById('inputWC').textContent = words + ' words';
+  const chars = e.target.value.length;
+  const wc = document.getElementById('inputWC');
+  wc.textContent = words + ' words';
+  if (chars > 6000) {
+    wc.textContent += ` · ${chars}/8000 chars`;
+    wc.style.color = chars > 7500 ? 'var(--coral)' : 'var(--amber)';
+  } else {
+    wc.style.color = 'var(--text3)';
+  }
 });
 
 document.querySelectorAll('.strat-btn').forEach(b => {
@@ -548,9 +556,18 @@ OUTPUT RULES:
 5. If you catch yourself writing a banned word or phrase — stop and rewrite that sentence`;
 }
 
+let lastRun = 0;
+
 async function runHumanize() {
+  const now = Date.now();
+  if (now - lastRun < 5000) {
+    alert('Please wait a few seconds before running again.');
+    return;
+  }
+
   const input = document.getElementById('inputText').value.trim();
   if (!input) { alert('Please paste some text to humanize.'); return; }
+  if (input.length > 8000) { alert('Text too long. Maximum 8000 characters.'); return; }
   if (input.split(/\s+/).filter(Boolean).length < 15) { alert('Please enter at least 15 words.'); return; }
 
   const strategies = getActiveStrategies();
@@ -591,10 +608,14 @@ async function runHumanize() {
     const data = await resp.json();
     if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
 
+    lastRun = Date.now();
+
     const result = (data.content || []).find(b => b.type === 'text')?.text || '';
     if (!result) throw new Error('Empty response from API');
 
     outputArea.textContent = result;
+    outputArea.style.borderColor = 'var(--accent)';
+    setTimeout(() => { outputArea.style.borderColor = 'var(--border)'; }, 1200);
     document.getElementById('copyBtn').style.display = 'block';
     showMetrics(input, result, strategies, intensity);
 
