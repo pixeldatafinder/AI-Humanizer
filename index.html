@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Text Humanizer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e0e10;
+    --surface: #18181b;
+    --surface2: #222228;
+    --border: #2e2e38;
+    --border2: #3e3e4e;
+    --text: #e8e8f0;
+    --text2: #9090a8;
+    --text3: #606078;
+    --accent: #7c6af7;
+    --accent-dim: #2a2250;
+    --teal: #22d3a8;
+    --teal-dim: #0d3328;
+    --amber: #f5a623;
+    --amber-dim: #3a2800;
+    --coral: #f06577;
+    --coral-dim: #38101a;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 20px 48px;
+  }
+
+  .page { max-width: 980px; margin: 0 auto; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 32px; }
+  .logo { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+  h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
+  h1 span { color: var(--accent); }
+  .subtitle { font-size: 14px; color: var(--text2); margin-top: 8px; line-height: 1.6; max-width: 520px; margin-left: auto; margin-right: auto; }
+  .pills { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+  .pill { font-size: 11px; padding: 4px 12px; border-radius: 20px; font-weight: 600; letter-spacing: 0.04em; }
+  .pill-t { background: var(--teal-dim); color: var(--teal); }
+  .pill-a { background: var(--accent-dim); color: #a89afa; }
+  .pill-b { background: var(--amber-dim); color: var(--amber); }
+  .pill-c { background: var(--coral-dim); color: var(--coral); }
+
+  /* API Key section */
+  .api-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .api-label { font-size: 12px; color: var(--text2); font-weight: 600; white-space: nowrap; }
+  .api-input-wrap { position: relative; flex: 1; min-width: 240px; }
+  .api-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 38px 9px 12px; font-size: 13px; color: var(--text); outline: none; font-family: monospace; letter-spacing: 0.04em; }
+  .api-input:focus { border-color: var(--accent); }
+  .api-input::placeholder { color: var(--text3); font-family: sans-serif; letter-spacing: 0; }
+  .eye-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text3); font-size: 15px; line-height: 1; }
+  .api-hint { font-size: 11px; color: var(--text3); white-space: nowrap; }
+  .api-hint a { color: var(--accent); text-decoration: none; }
+  .api-hint a:hover { text-decoration: underline; }
+
+  /* Main grid */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; }
+  .panel-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); }
+  .word-count { font-size: 11px; color: var(--text3); }
+
+  textarea {
+    flex: 1;
+    min-height: 200px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-family: 'Georgia', serif;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--text3); font-family: sans-serif; font-size: 13px; }
+
+  /* Controls */
+  .sep { height: 1px; background: var(--border); }
+  .ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ctrl-row { display: flex; flex-direction: column; gap: 5px; }
+  .ctrl-label { font-size: 12px; color: var(--text2); display: flex; justify-content: space-between; }
+  .ctrl-val { color: var(--accent); font-weight: 600; }
+
+  select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    width: 100%;
+  }
+  select:focus { border-color: var(--accent); }
+
+  input[type=range] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+
+  /* Strategies */
+  .strat-title { font-size: 12px; color: var(--text2); font-weight: 600; }
+  .strat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .strat-btn {
+    padding: 7px 6px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    color: var(--text3);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    line-height: 1.3;
+    font-weight: 500;
+  }
+  .strat-btn.active {
+    border-color: var(--teal);
+    background: var(--teal-dim);
+    color: var(--teal);
+  }
+  .strat-btn:hover:not(.active) { border-color: var(--border2); color: var(--text2); }
+
+  /* Run button */
+  .run-btn {
+    width: 100%;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .run-btn:hover { opacity: 0.9; }
+  .run-btn:active { transform: scale(0.98); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Output */
+  .output-text {
+    flex: 1;
+    min-height: 200px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-family: 'Georgia', serif;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+  }
+  .placeholder { color: var(--text3); font-family: sans-serif; font-size: 13px; font-style: italic; }
+
+  .copy-btn {
+    padding: 5px 14px;
+    font-size: 12px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { background: var(--surface2); color: var(--text); }
+
+  /* Metrics */
+  .metrics { display: flex; gap: 8px; flex-wrap: wrap; }
+  .metric {
+    display: flex; flex-direction: column; align-items: center;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 14px; min-width: 72px;
+  }
+  .metric-val { font-size: 15px; font-weight: 700; }
+  .metric-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+
+  .preset-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.65s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-msg { color: var(--coral); font-size: 13px; font-family: sans-serif; }
+
+  /* Footer */
+  .footer { margin-top: 24px; text-align: center; font-size: 11px; color: var(--text3); line-height: 1.8; }
+  .footer strong { color: var(--text2); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="logo">AI Detection Bypass Tool</div>
+    <h1>Text <span>Humanizer</span></h1>
+    <p class="subtitle">Reverse-engineered from GPTZero, Turnitin, Originality.ai & Copyleaks — targeting every signal they scan for.</p>
+    <div class="pills">
+      <span class="pill pill-t">Burstiness control</span>
+      <span class="pill pill-a">Perplexity boost</span>
+      <span class="pill pill-b">Lexical diversity</span>
+      <span class="pill pill-c">Fingerprint removal</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT: Input + controls -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-label">Input — AI text</span>
+        <span class="word-count" id="inputWC">0 words</span>
+      </div>
+      <textarea id="inputText" placeholder="Paste your AI-generated text here...&#10;&#10;Works best with 80+ words. The more text, the better the humanization."></textarea>
+
+      <div class="sep"></div>
+
+      <div>
+        <div class="strat-title" style="margin-bottom:7px">Quick presets</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="preset-btn" onclick="applyPreset('academic')">🎓 Academic</button>
+          <button class="preset-btn" onclick="applyPreset('blog')">✍️ Blog</button>
+          <button class="preset-btn" onclick="applyPreset('casual')">💬 Casual</button>
+          <button class="preset-btn" onclick="applyPreset('professional')">💼 Professional</button>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="ctrl-grid">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Tone</div>
+          <select id="toneSelect">
+            <option value="natural">Natural / conversational</option>
+            <option value="academic">Academic / formal</option>
+            <option value="casual">Casual / friendly</option>
+            <option value="professional">Professional / business</option>
+            <option value="journalistic">Journalistic</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Purpose</div>
+          <select id="purposeSelect">
+            <option value="general">General writing</option>
+            <option value="essay">Academic essay</option>
+            <option value="blog">Blog / article</option>
+            <option value="email">Email / message</option>
+            <option value="report">Report / analysis</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Humanization intensity <span class="ctrl-val" id="intensityVal">Medium</span></div>
+        <input type="range" id="intensity" min="1" max="3" step="1" value="2">
+      </div>
+
+      <div>
+        <div class="strat-title" style="margin-bottom:7px">Strategies (toggle on/off)</div>
+        <div class="strat-grid">
+          <div class="strat-btn active" data-s="burstiness">📊 Burstiness</div>
+          <div class="strat-btn active" data-s="perplexity">🎲 Perplexity</div>
+          <div class="strat-btn active" data-s="idioms">🗣 Idioms</div>
+          <div class="strat-btn active" data-s="contractions">✂️ Contractions</div>
+          <div class="strat-btn active" data-s="imperfections">✍️ Imperfections</div>
+          <div class="strat-btn active" data-s="restructure">🔀 Restructure</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">🔁 Double pass</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Runs two separate rewrites — significantly lowers AI score. Takes ~2x longer.</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;margin-left:12px;">
+          <input type="checkbox" id="doublePass" style="opacity:0;width:0;height:0;">
+          <span id="toggleTrack" style="position:absolute;cursor:pointer;inset:0;background:var(--border2);border-radius:22px;transition:0.2s;" onclick="toggleSwitch()"></span>
+          <span id="toggleThumb" style="position:absolute;content:'';height:16px;width:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:0.2s;pointer-events:none;"></span>
+        </label>
+      </div>
+
+      <button class="run-btn" id="runBtn" onclick="runHumanize()">Humanize Text</button>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-label">Output — humanized</span>
+        <button class="copy-btn" id="copyBtn" onclick="copyOutput()" style="display:none">Copy</button>
+      </div>
+      <div class="output-text" id="outputArea">
+        <span class="placeholder">Humanized text will appear here...</span>
+      </div>
+      <div id="metricsWrap" style="display:none">
+        <div class="sep"></div>
+        <div style="font-size:11px;color:var(--text3);font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">Signals applied</div>
+        <div class="metrics" id="metricsRow"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <strong>Powered by Groq + Llama 3.3 70B (free).</strong> AI detectors flag text using perplexity (predictability), burstiness (sentence length variance), and deep classifier models.<br>
+    This tool targets all three layers simultaneously — rewriting in authentic human patterns.
+  </div>
+</div>
+
+<script>
+const intensityLabels = ['Light', 'Medium', 'Heavy'];
+document.getElementById('intensity').addEventListener('input', e => {
+  document.getElementById('intensityVal').textContent = intensityLabels[e.target.value - 1];
+});
+
+document.getElementById('inputText').addEventListener('input', e => {
+  const words = e.target.value.trim().split(/\s+/).filter(Boolean).length;
+  document.getElementById('inputWC').textContent = words + ' words';
+});
+
+document.querySelectorAll('.strat-btn').forEach(b => {
+  b.addEventListener('click', () => b.classList.toggle('active'));
+});
+
+function applyPreset(name) {
+  const presets = {
+    academic: {
+      tone: 'academic', purpose: 'report', intensity: '3',
+      on: ['burstiness', 'perplexity', 'restructure'],
+      off: ['idioms', 'contractions', 'imperfections']
+    },
+    blog: {
+      tone: 'journalistic', purpose: 'blog', intensity: '2',
+      on: ['burstiness', 'perplexity', 'idioms', 'imperfections', 'restructure'],
+      off: ['contractions']
+    },
+    casual: {
+      tone: 'casual', purpose: 'general', intensity: '2',
+      on: ['burstiness', 'perplexity', 'idioms', 'contractions', 'imperfections', 'restructure'],
+      off: []
+    },
+    professional: {
+      tone: 'professional', purpose: 'email', intensity: '2',
+      on: ['burstiness', 'perplexity', 'restructure', 'contractions'],
+      off: ['idioms', 'imperfections']
+    }
+  };
+
+  const p = presets[name];
+  if (!p) return;
+
+  document.getElementById('toneSelect').value = p.tone;
+  document.getElementById('purposeSelect').value = p.purpose;
+  document.getElementById('intensity').value = p.intensity;
+  document.getElementById('intensityVal').textContent = intensityLabels[p.intensity - 1];
+
+  document.querySelectorAll('.strat-btn').forEach(b => {
+    if (p.on.includes(b.dataset.s)) b.classList.add('active');
+    else if (p.off.includes(b.dataset.s)) b.classList.remove('active');
+  });
+}
+
+function toggleSwitch() {
+  const cb = document.getElementById('doublePass');
+  cb.checked = !cb.checked;
+  const track = document.getElementById('toggleTrack');
+  const thumb = document.getElementById('toggleThumb');
+  if (cb.checked) {
+    track.style.background = 'var(--accent)';
+    thumb.style.transform = 'translateX(18px)';
+  } else {
+    track.style.background = 'var(--border2)';
+    thumb.style.transform = 'translateX(0)';
+  }
+}
+
+function getActiveStrategies() {
+  return Array.from(document.querySelectorAll('.strat-btn.active')).map(b => b.dataset.s);
+}
+
+function buildSystemPrompt(strategies, tone, intensity, purpose) {
+  const lvlMap = { '1': 'light', '2': 'moderate', '3': 'aggressive' };
+  const lvl = lvlMap[intensity];
+
+  const stratDefs = {
+    burstiness: `BURSTINESS (CRITICAL — DO THIS FIRST):
+You MUST vary sentence length dramatically. Count your sentence lengths as you write. You need a mix like: 8 words, 32 words, 5 words, 27 words, 11 words, 38 words, 6 words.
+WRONG (uniform — AI pattern): "The system handles scheduling efficiently. The algorithm processes constraints quickly. The database stores data reliably. The interface displays results clearly."
+RIGHT (varied — human pattern): "The system handles scheduling well. But the algorithm — which processes dozens of interlocking constraints simultaneously — takes considerably longer on complex inputs, particularly when teacher availability windows are narrow and room assignments conflict. Worth knowing upfront."
+Short sentences MUST appear. If your last 3 sentences are all long, write a short one now.`,
+
+    perplexity: `PERPLEXITY — UNPREDICTABLE WORD CHOICES:
+At every point, ask: what word would a language model default to here? Then use a different, equally correct word.
+WRONG: "The system successfully performs all required operations."
+RIGHT: "The system handles everything it needs to — without issue."
+WRONG: "This limitation may affect the quality of the output."
+RIGHT: "Poor input data throws off the results."
+Use direct, specific phrasing. Avoid abstract corporate vocabulary.`,
+
+    idioms: `IDIOMS & VOICE — casual/blog only:
+Add personality. Use everyday analogies. Give the text a point of view. Example: "think of it like..." or "in practice, this means..."`,
+
+    contractions: `CONTRACTIONS — casual/blog/email only:
+Use: it's, don't, can't, we've, they're, you'd, hasn't, wasn't. Sprinkle throughout naturally.`,
+
+    imperfections: `NATURAL IMPERFECTIONS — casual/blog only:
+Start occasional sentences with "And" or "But". Use em-dashes — like this — to interrupt a thought. Add a parenthetical aside (like this one). Use a one-word sentence for emphasis. Occasional.`,
+
+    restructure: `RESTRUCTURE — CHANGE THE ARCHITECTURE:
+Do NOT just replace words. Completely change how sentences are built.
+- Split long sentences into two shorter ones
+- Combine two short sentences into one flowing one  
+- Move the main point from end of sentence to beginning
+- Turn "X is done by Y" (passive) into "Y does X" (active)
+- Reorder the paragraph so supporting detail comes before the claim, not after`
+  };
+
+  const toneRules = {
+    academic: `
+ACADEMIC TONE — STRICT RULES:
+✗ NO contractions (not "it's", "we've", "don't", "can't")
+✗ NO rhetorical questions ("But what does this mean?")
+✗ NO narrator openers ("Now,", "So,", "Well,", "And so,")
+✗ NO idioms or informal phrases
+✗ NO these words: thereby, thus, hence, aforementioned, aforestated, efficacy, necessitate, necessitating, utilize (use "use"), leverage, robust, paramount, crucial, significant (use "major" or "key"), notable, considerable, substantial (use actual numbers or "large")
+✗ NO "is also a/an X" constructions ("is also a critical consideration", "is also a key factor")
+✗ NO closing summaries that start with "To", "In order to", "Overall"
+✗ NO "has/have yielded" — say what actually happened directly
+✗ NO "in terms of", "with regard to", "with respect to"
+✓ Third person unless original uses first person
+✓ Active voice strongly preferred
+✓ Direct statements: say WHAT happened, not that something "was observed to have occurred"
+✓ Short sentences (under 10 words) must appear — they are fine in academic writing
+✓ Vary paragraph length — not every paragraph needs 3 sentences
+
+ACADEMIC SENTENCE EXAMPLES:
+BAD: "The system's dependence on accurate input data is also a critical consideration."
+GOOD: "Data quality directly determines output quality. Administrators must enter complete, correct records."
+
+BAD: "The introduction of highly complex scheduling constraints may overwhelm the existing algorithm, necessitating further refinement."
+GOOD: "The algorithm handles standard constraints well. Push it toward highly complex scheduling — multiple rooms, split sessions, irregular availability — and it starts to struggle."`,
+
+    professional: `
+PROFESSIONAL TONE RULES:
+✗ No idioms or slang
+✗ No filler phrases
+✓ Clear, direct, confident
+✓ Active voice
+✓ Contractions sparingly where natural`,
+
+    journalistic: `
+JOURNALISTIC TONE RULES:
+✓ Short punchy sentences. Mixed with longer analytical ones.
+✓ Strong active verbs
+✓ Concrete specifics
+✓ Contractions natural`,
+
+    casual: `
+CASUAL TONE RULES:
+✓ Contractions everywhere
+✓ Short sentences preferred
+✓ First/second person natural
+✓ Friendly, direct, warm`,
+
+    natural: `
+NATURAL TONE RULES:
+✓ Thoughtful, readable
+✓ Contractions where natural
+✓ Mix of sentence lengths`
+  };
+
+  const purposeRules = {
+    report: `PURPOSE — FORMAL REPORT:
+State findings directly. No narrative buildup. No closing "in summary" paragraph — end on the last substantive point.`,
+    essay: `PURPOSE — ACADEMIC ESSAY:
+Preserve argument structure. Humanize prose rhythm. Maintain scholarly register.`,
+    blog: `PURPOSE — BLOG/ARTICLE:
+Conversational and engaging. Real personality. Readers should enjoy reading it.`,
+    email: `PURPOSE — EMAIL:
+Brief, direct, warm. Get to the point in the first sentence.`,
+    general: `PURPOSE — GENERAL:
+Thoughtful, clear, human. Balance formality with readability.`
+  };
+
+  const activeStrats = strategies.map(s => stratDefs[s]).filter(Boolean).join('\n\n---\n\n');
+
+  return `You are rewriting AI-generated text to pass AI detection tools. Your output must read like a real human wrote it.
+
+ACTIVE REWRITING STRATEGIES — follow these exactly:
+
+${activeStrats}
+
+---
+
+${toneRules[tone] || toneRules.natural}
+
+${purposeRules[purpose] || purposeRules.general}
+
+---
+
+INTENSITY: ${lvl}
+- light: Vary rhythm and word choice, light restructuring
+- moderate: Significant rephrasing and restructuring throughout  
+- aggressive: Complete reconstruction — same facts, entirely new expression, every sentence rebuilt
+
+UNIVERSAL BANNED WORDS — never use any of these:
+thereby, hence, thus, aforementioned, efficacy, necessitate, utilize, leverage, robust, paramount, foster, delve, tapestry, multifaceted, nuanced, intricate, pivotal, seamlessly, meticulous, testament, beacon, transformative, cutting-edge, game-changer, harness, elevate, empower, unlock, groundbreaking, invaluable, streamline, revolutionize
+
+UNIVERSAL BANNED PHRASES — never use any of these:
+"it is important to note", "it is worth noting", "it is worth mentioning", "in today's world", "in conclusion", "to summarize", "furthermore,", "moreover,", "when it comes to", "plays a crucial role", "at the end of the day", "moving forward", "not to mention", "has yielded", "have yielded", "overall performance", "overall effectiveness", "overall efficacy", "is also a critical", "is also a key", "is also an important", "potential avenues", "to mitigate these", "to address these limitations"
+
+OUTPUT RULES:
+1. Preserve ALL facts — no additions, no removals, no changes to meaning
+2. Output ONLY the rewritten text — no preamble, no explanation
+3. No markdown, no quotes around output
+4. Match approximate original length (±15%)
+5. If you catch yourself writing a banned word or phrase — stop and rewrite that sentence`;
+}
+
+async function runHumanize() {
+  const input = document.getElementById('inputText').value.trim();
+  if (!input) { alert('Please paste some text to humanize.'); return; }
+  if (input.split(/\s+/).filter(Boolean).length < 15) { alert('Please enter at least 15 words.'); return; }
+
+  const strategies = getActiveStrategies();
+  if (!strategies.length) { alert('Please enable at least one strategy.'); return; }
+
+  const tone = document.getElementById('toneSelect').value;
+  const purpose = document.getElementById('purposeSelect').value;
+  const intensity = document.getElementById('intensity').value;
+
+  const doublePass = document.getElementById('doublePass').checked;
+
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  btn.innerHTML = doublePass
+    ? '<span class="spinner"></span>Pass 1 of 2...'
+    : '<span class="spinner"></span>Humanizing...';
+
+  const outputArea = document.getElementById('outputArea');
+  outputArea.innerHTML = '<span class="placeholder">Processing... this may take a few seconds.</span>';
+  document.getElementById('copyBtn').style.display = 'none';
+  document.getElementById('metricsWrap').style.display = 'none';
+
+  try {
+    const systemPrompt = buildSystemPrompt(strategies, tone, intensity, purpose);
+
+    const resp = await fetch('/humanize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        doublePass,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Humanize this text:\n\n${input}` }]
+      })
+    });
+
+    if (doublePass) btn.innerHTML = '<span class="spinner"></span>Pass 2 of 2...';
+
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+    const result = (data.content || []).find(b => b.type === 'text')?.text || '';
+    if (!result) throw new Error('Empty response from API');
+
+    outputArea.textContent = result;
+    document.getElementById('copyBtn').style.display = 'block';
+    showMetrics(input, result, strategies, intensity);
+
+  } catch (err) {
+    outputArea.innerHTML = `<span class="error-msg">Error: ${err.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Humanize Text';
+  }
+}
+
+function showMetrics(input, output, strategies, intensity) {
+  const iSents = input.split(/[.!?]+/).filter(s => s.trim().length > 3);
+  const oSents = output.split(/[.!?]+/).filter(s => s.trim().length > 3);
+
+  function burstiness(sents) {
+    if (sents.length < 2) return 0;
+    const lens = sents.map(s => s.trim().split(/\s+/).length);
+    const mean = lens.reduce((a,b)=>a+b,0)/lens.length;
+    const variance = lens.reduce((a,b)=>a+Math.pow(b-mean,2),0)/lens.length;
+    return Math.round(Math.sqrt(variance));
+  }
+  function uniqueness(text) {
+    const words = text.toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/).filter(Boolean);
+    return words.length ? Math.round(new Set(words).size/words.length*100) : 0;
+  }
+
+  const iBurst = burstiness(iSents);
+  const oBurst = burstiness(oSents);
+  const improved = oBurst > iBurst;
+  const lvlLabels = { '1':'Light','2':'Medium','3':'Heavy' };
+
+  const metrics = [
+    { val: oBurst + (improved ? '↑':''), lbl: 'Burstiness', color: improved ? 'var(--teal)' : 'var(--coral)' },
+    { val: uniqueness(output) + '%', lbl: 'Lexical div.', color: 'var(--accent)' },
+    { val: oSents.length, lbl: 'Sentences', color: 'var(--amber)' },
+    { val: strategies.length + '/6', lbl: 'Strategies', color: 'var(--teal)' },
+    { val: lvlLabels[intensity], lbl: 'Intensity', color: '#9090a8' },
+  ];
+
+  document.getElementById('metricsRow').innerHTML = metrics.map(m =>
+    `<div class="metric"><span class="metric-val" style="color:${m.color}">${m.val}</span><span class="metric-lbl">${m.lbl}</span></div>`
+  ).join('');
+  document.getElementById('metricsWrap').style.display = 'block';
+}
+
+function copyOutput() {
+  const text = document.getElementById('outputArea').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+</script>
+</body>
+</html>
