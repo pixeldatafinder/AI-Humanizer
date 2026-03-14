@@ -180,7 +180,7 @@ def keep_warm():
     while True:
         time.sleep(280)
         try:
-            requests.get('https://ai-humanizer-1umd.onrender.com/', timeout=10)
+            requests.get('https://ai-humanizer-1umd.onrender.com/health', timeout=10)
         except:
             pass
 
