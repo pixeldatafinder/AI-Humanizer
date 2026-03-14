@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import requests, os, hashlib
+import requests, os, hashlib, threading, time
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
@@ -11,8 +11,11 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
 MAX_WORDS = 5000
 
-# Simple in-memory cache
+# Simple TTL cache
 cache = {}
+CACHE_TTL = 3600  # 1 hour
+
+VALID_STRATEGIES = {'burstiness', 'perplexity', 'idioms', 'contractions', 'imperfections', 'restructure'}
 
 limiter = Limiter(
     get_remote_address,
@@ -161,17 +164,21 @@ def call_groq(system, user, temp=1.2):
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {GROQ_API_KEY}'
     }
-    resp = requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=60)
+    try:
+        resp = requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=60)
+    except requests.exceptions.Timeout:
+        raise Exception("The AI service took too long to respond. Please try again.")
     result = resp.json()
     if resp.status_code != 200:
         raise Exception(result.get('error', {}).get('message', 'Groq API error'))
-    return result['choices'][0]['message']['content']
-
-import threading, time
+    try:
+        return result['choices'][0]['message']['content']
+    except (KeyError, IndexError):
+        raise Exception("Invalid response from Groq API")
 
 def keep_warm():
     while True:
-        time.sleep(280)  # every ~4.5 minutes
+        time.sleep(280)
         try:
             requests.get('https://ai-humanizer-1umd.onrender.com/', timeout=10)
         except:
@@ -213,7 +220,7 @@ def humanize():
     tone      = data.get('tone', 'natural')
     purpose   = data.get('purpose', 'general')
     intensity = str(data.get('intensity', '2'))
-    strategies = data.get('strategies', [])
+    strategies = [s for s in data.get('strategies', []) if s in VALID_STRATEGIES]
     double_pass = data.get('doublePass', False)
 
     if not text:
@@ -221,12 +228,16 @@ def humanize():
     if len(text.split()) > MAX_WORDS:
         return jsonify({'error': f'Input too long. Maximum {MAX_WORDS} words allowed.'}), 400
     if not strategies:
-        return jsonify({'error': 'No strategies selected.'}), 400
+        return jsonify({'error': 'No valid strategies selected.'}), 400
 
-    # Cache key based on all inputs
+    # TTL cache lookup
     cache_key = hashlib.md5(f"{text}{tone}{purpose}{intensity}{''.join(sorted(strategies))}{double_pass}".encode()).hexdigest()
     if cache_key in cache:
-        return jsonify({'content': [{'type': 'text', 'text': cache[cache_key]}]})
+        result, ts = cache[cache_key]
+        if time.time() - ts < CACHE_TTL:
+            return jsonify({'content': [{'type': 'text', 'text': result}]})
+        else:
+            del cache[cache_key]
 
     try:
         system_prompt = build_system_prompt(strategies, tone, intensity, purpose)
@@ -237,7 +248,7 @@ def humanize():
         else:
             final = pass1
 
-        cache[cache_key] = final
+        cache[cache_key] = (final, time.time())
         return jsonify({'content': [{'type': 'text', 'text': final}]})
 
     except Exception as e:
