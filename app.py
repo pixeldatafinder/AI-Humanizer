@@ -167,6 +167,22 @@ def call_groq(system, user, temp=1.2):
         raise Exception(result.get('error', {}).get('message', 'Groq API error'))
     return result['choices'][0]['message']['content']
 
+import threading, time
+
+def keep_warm():
+    while True:
+        time.sleep(280)  # every ~4.5 minutes
+        try:
+            requests.get('https://ai-humanizer-1umd.onrender.com/', timeout=10)
+        except:
+            pass
+
+threading.Thread(target=keep_warm, daemon=True).start()
+
+@app.route('/health')
+def health():
+    return 'ok', 200
+
 @app.route('/sitemap.xml')
 def sitemap():
     xml = '''<?xml version="1.0" encoding="UTF-8"?>
