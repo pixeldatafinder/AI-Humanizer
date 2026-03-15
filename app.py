@@ -187,20 +187,115 @@ def keep_warm():
 threading.Thread(target=keep_warm, daemon=True).start()
 
 @app.route('/health')
+@limiter.exempt
 def health():
     return 'ok', 200
 
+SEO_PAGES = {
+    "humanize-chatgpt-text": {
+        "title": "Humanize ChatGPT Text – Free AI Humanizer",
+        "description": "Convert ChatGPT-generated text into natural human writing. Free, no sign up required.",
+        "heading": "Humanize ChatGPT Text"
+    },
+    "humanize-ai-essay": {
+        "title": "Humanize AI Essay – Free AI Text Humanizer",
+        "description": "Rewrite AI-generated essays to sound natural and human. Free tool, no account needed.",
+        "heading": "Humanize AI Essay"
+    },
+    "remove-ai-detection": {
+        "title": "Remove AI Detection – Free AI Humanizer",
+        "description": "Rewrite AI text to reduce AI detection signals. Free, no sign up required.",
+        "heading": "Remove AI Detection"
+    },
+    "humanize-gpt4-text": {
+        "title": "Humanize GPT-4 Text – Free AI Humanizer",
+        "description": "Make GPT-4 generated text sound natural and human. Free tool, no account needed.",
+        "heading": "Humanize GPT-4 Text"
+    },
+    "humanize-ai-blog-post": {
+        "title": "Humanize AI Blog Post – Free AI Text Humanizer",
+        "description": "Rewrite AI-generated blog posts to sound like a real human wrote them.",
+        "heading": "Humanize AI Blog Posts"
+    },
+    "humanize-ai-email": {
+        "title": "Humanize AI Email – Free AI Text Humanizer",
+        "description": "Make AI-written emails sound natural and professional. Free, no sign up.",
+        "heading": "Humanize AI Emails"
+    },
+    "rewrite-ai-text": {
+        "title": "Rewrite AI Text – Free AI Humanizer Tool",
+        "description": "Rewrite AI-generated text to sound natural. Supports academic, casual and professional tones.",
+        "heading": "Rewrite AI Text"
+    },
+    "humanize-ai-content": {
+        "title": "Humanize AI Content – Free AI Text Humanizer",
+        "description": "Transform AI-generated content into natural human writing. Free tool, no account needed.",
+        "heading": "Humanize AI Content"
+    }
+}
+
+def render_seo_page(slug, page):
+    return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{page["title"]}</title>
+  <meta name="description" content="{page["description"]}">
+  <link rel="canonical" href="https://ai-humanizer-1umd.onrender.com/{slug}">
+  <meta name="robots" content="index, follow">
+  <style>
+    body {{ font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }}
+    h1 {{ font-size: 28px; margin-bottom: 10px; }}
+    p {{ color: #444; line-height: 1.6; }}
+    .tool-link {{ display: inline-block; margin-top: 20px; padding: 14px 28px;
+      background: #6c63ff; color: white; text-decoration: none;
+      border-radius: 8px; font-size: 16px; font-weight: 600; }}
+    .links {{ margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; }}
+    .links a {{ display: block; color: #6c63ff; margin-bottom: 8px; text-decoration: none; }}
+  </style>
+</head>
+<body>
+  <h1>{page["heading"]}</h1>
+  <p>{page["description"]}</p>
+  <p>Our free AI humanizer rewrites AI-generated text to sound natural and human.
+  It varies sentence length, improves word choice, and removes common AI patterns —
+  all while preserving your original meaning.</p>
+  <p>Supports multiple tones: academic, professional, casual, and journalistic.
+  No sign up required. Completely free.</p>
+  <a class="tool-link" href="/">Try the Free AI Humanizer →</a>
+  <div class="links">
+    <strong>Related tools:</strong><br>
+    {''.join(f'<a href="/{s}">{SEO_PAGES[s]["heading"]}</a>' for s in SEO_PAGES if s != slug)}
+  </div>
+</body>
+</html>'''
+
 @app.route('/sitemap.xml')
+@limiter.exempt
 def sitemap():
-    xml = '''<?xml version="1.0" encoding="UTF-8"?>
+    urls = '\n'.join(
+        f'  <url><loc>https://ai-humanizer-1umd.onrender.com/{slug}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>'
+        for slug in SEO_PAGES
+    )
+    xml = f'''<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://ai-humanizer-1umd.onrender.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+{urls}
 </urlset>'''
     return app.response_class(xml, mimetype='application/xml')
+
+@app.route('/<slug>')
+@limiter.exempt
+def seo_page(slug):
+    page = SEO_PAGES.get(slug)
+    if not page:
+        return send_from_directory('static', 'index.html')
+    return render_seo_page(slug, page)
 
 @app.route('/')
 def index():
